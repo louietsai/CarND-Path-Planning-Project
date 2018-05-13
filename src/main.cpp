@@ -9,10 +9,13 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
+#include "vehicle.h"
 using namespace std;
 
 // for convenience
 using json = nlohmann::json;
+
+vector<Vehicle> vehicles;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -256,17 +259,70 @@ int main() {
                 }
                 bool too_close = false;
 
-                //find ref_v to use
                 for(int i = 0; i < sensor_fusion.size();i++)
                 {
-                        //car is in my lane
+                        // [ id, x, y, vx, vy, s, d]
+                        float id = sensor_fusion[i][0];
+                        float x = sensor_fusion[i][1];
+                        float y = sensor_fusion[i][2];
+                        float vx = sensor_fusion[i][3];
+                        float vy = sensor_fusion[i][4];
+                        float s = sensor_fusion[i][5];
                         float d = sensor_fusion[i][6];
+                        string state = "CS";
+                        cout << " car from sensor : " << id << " ,"<< x << " ,"<< y << " ,"<< vx << " ,"<< vy << " ,"<< s << " ,"<< d << endl;
+                        double v = sqrt(vx*vx+vy*vy);
+                        float a = 0; //TODO
+                        bool found = false;
+
+                        cout << " before iterator vehicle ID: " << id <<endl;
+                        //for (vector<Vehicle>::iterator it = vehicles.begin(); it != vehicles.end(); ++it) {
+                        for (int j=0; j < vehicles.size();j++) {
+                                cout << " into iterator id: " << id <<endl;
+                                if (vehicles[j].id == id){
+                                        found = true;
+                                        vehicles[j].x = x;
+                                        vehicles[j].y = y;
+                                        vehicles[j].vx = vx;
+                                        vehicles[j].vy = vy;
+                                        vehicles[j].d = d;
+                                        vehicles[j].lane = lane;
+                                        vehicles[j].s = s;
+                                        vehicles[j].v = v;
+                                        vehicles[j].a = a;
+                                        vehicles[j].state = state;
+                                        break;
+                                }
+    			}
+                        if (!found){
+                                Vehicle new_vehicle = Vehicle(d, s, v, a, state);
+                                new_vehicle.id = id;
+                                new_vehicle.d = d;
+                                new_vehicle.x = x;
+                                new_vehicle.y = y;
+                                new_vehicle.vx = vx;
+                                new_vehicle.vy = vy;
+                                cout << " new vehicle ID: " << id <<endl;
+                                vehicles.push_back(new_vehicle);
+                        }
+                }
+
+                for (vector<Vehicle>::iterator it = vehicles.begin(); it != vehicles.end(); ++it) {
+                        cout << " car from sensor : " << it->id << " ,"<< it->x << " ,"<< it->y << " ,"<< it->vx << " ,"<< it->vy << " ,"<< it->s << " ,"<< it->d << endl;
+                }
+
+                //find ref_v to use
+                for (int i=0; i < vehicles.size();i++)
+                {
+
+                        //car is in my lane
+                        float d = vehicles[i].d;
                         if (d < (2+4*lane+2) && d > (2+4*lane -2))
                         {
-                                double vx = sensor_fusion[i][3];
-                                double vy = sensor_fusion[i][4];
+                                double vx = vehicles[i].vx;
+                                double vy = vehicles[i].vy;
                                 double check_speed = sqrt(vx*vx+vy*vy);
-                                double check_car_s = sensor_fusion[i][5];
+                                double check_car_s = vehicles[i].s;
                                 check_car_s+=((double)prev_size*0.02*check_speed);
                                 if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
                                 {

@@ -19,6 +19,7 @@ public:
     int  time; // time collision happens
 
   };
+  int id;
 
   int L = 1;
 
@@ -26,9 +27,19 @@ public:
 
   int lane;
 
+  int d;
+
   int s;
 
   float v;
+
+  float x;
+
+  float y;
+
+  float vx;
+
+  float vy;
 
   float a;
 
@@ -49,6 +60,7 @@ public:
   */
   Vehicle();
   Vehicle(int lane, float s, float v, float a, string state="CS");
+  //Vehicle(int id, float x, float y, float vx, float vy, float s, float d, string state="CS");
 
   /**
   * Destructor
