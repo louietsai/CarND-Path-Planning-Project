@@ -16,6 +16,9 @@ using namespace std;
 using json = nlohmann::json;
 
 vector<Vehicle> vehicles;
+// time interval per move
+// 20 ms 0.02 sec
+float time_interval = 0.02;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -258,11 +261,28 @@ int main() {
                         car_s = end_path_s;
                 }
                 bool too_close = false;
-
+                // add Main car into vehicles array
+                if (vehicles.size() == 0){
+                        cout << "NO VEHICLE in list!!"<<endl;
+                        Vehicle main_vehicle = Vehicle(car_d, car_s, car_speed, 0, "CS");
+                        vehicles.push_back(main_vehicle);
+                }
+                vehicles[0].x = car_x;
+                vehicles[0].y = car_y;
+                //vehicles[0].vx = vx;
+                //vehicles[0].vy = vy;
+                vehicles[0].d = car_d;
+                vehicles[0].lane = lane;
+                vehicles[0].s = car_s;
+                vehicles[0].a = (car_speed - vehicles[0].v) / time_interval;
+                vehicles[0].v = car_speed;
+                //vehicles[0].state = state;
+                //
+                // Merge sensor fusion into vehicles array
                 for(int i = 0; i < sensor_fusion.size();i++)
                 {
                         // [ id, x, y, vx, vy, s, d]
-                        float id = sensor_fusion[i][0];
+                        float id = sensor_fusion[i][0] + 1; // shift id number. id:0 is main car
                         float x = sensor_fusion[i][1];
                         float y = sensor_fusion[i][2];
                         float vx = sensor_fusion[i][3];
@@ -270,7 +290,7 @@ int main() {
                         float s = sensor_fusion[i][5];
                         float d = sensor_fusion[i][6];
                         string state = "CS";
-                        cout << " car from sensor : " << id << " ,"<< x << " ,"<< y << " ,"<< vx << " ,"<< vy << " ,"<< s << " ,"<< d << endl;
+                        //cout << " car from sensor : " << id << " ,"<< x << " ,"<< y << " ,"<< vx << " ,"<< vy << " ,"<< s << " ,"<< d << endl;
                         double v = sqrt(vx*vx+vy*vy);
                         float a = 0; //TODO
                         bool found = false;
@@ -286,10 +306,10 @@ int main() {
                                         vehicles[j].vx = vx;
                                         vehicles[j].vy = vy;
                                         vehicles[j].d = d;
-                                        vehicles[j].lane = lane;
+                                        //vehicles[j].lane = lane;
                                         vehicles[j].s = s;
+                                        vehicles[j].a = (v - vehicles[j].v) / time_interval;
                                         vehicles[j].v = v;
-                                        vehicles[j].a = a;
                                         vehicles[j].state = state;
                                         break;
                                 }
@@ -307,8 +327,14 @@ int main() {
                         }
                 }
 
+                // Prediction for each Vehicle
+                map<int ,vector<Vehicle> > predictions;
                 for (vector<Vehicle>::iterator it = vehicles.begin(); it != vehicles.end(); ++it) {
-                        cout << " car from sensor : " << it->id << " ,"<< it->x << " ,"<< it->y << " ,"<< it->vx << " ,"<< it->vy << " ,"<< it->s << " ,"<< it->d << endl;
+//#ifdef debug
+                        cout << " car from sensor  id:" << it->id << " ,x:"<< it->x << " ,y:"<< it->y << " ,vx:"<< it->vx << " ,vy:"<< it->vy << " ,s:"<< it->s << " ,d:"<< it->d << " ,v:"<< it->v<<" ,a:"<<it->a<< endl;
+                        //vector<Vehicle> preds = it->generate_predictions();
+                        //predictions[it->id] = preds;
+//#endif
                 }
 
                 //find ref_v to use
