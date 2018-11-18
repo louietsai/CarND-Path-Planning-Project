@@ -6,11 +6,20 @@ In this project your goal is to safely navigate around a virtual highway with ot
 
 ### Results
 
-![original VGG](./data/7miles.png)
+The car is able to drive >7 miles without incident and maintain the speed ~45 miles per hour according to speed limit "50 mph". Along the drive, max Acceleration and Jerk are not Exceeded, and car does not have collisions.
 
-![original VGG](./data/4_5miles.png)
 
-![original VGG](./data/change_lane_at_lowspeed1.png))
+![7miles](./data/7miles.png)
+
+![4.5 miles](./data/4_5miles.png)
+
+
+
+The car stays in its lane, but it will change lane if it can achieve higher speed in another lane.
+here is an example of changing lane because of slow vehcile in front of it.
+
+
+![changelane](./data/change_lane_at_lowspeed1.png))
 
 
 
