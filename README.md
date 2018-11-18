@@ -110,7 +110,7 @@ here is an example of changing lane because of slow vehcile in front of it.
 ![original VGG](./data/change_lane_at_highspeed2.png))
 
 
-#### 6. slow down and then change lane to make our drive safer. we introduce a plan_to_change_lane flag, so we have one more state "plan to change lane" in state machine. the vehicle will slow down and then change lane.
+#### 6. slow down and then change lane to make our drive in safer way. we introduce a plan_to_change_lane flag, so we have one more state "plan to change lane" in state machine. the vehicle will slow down and then change lane.
 
                 if ((prev_lanes_status_ != lanes_status ) || (plan_to_change_lane == true)){
 
