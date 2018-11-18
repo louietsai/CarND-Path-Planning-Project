@@ -81,17 +81,115 @@ here is an example of changing lane because of slow vehcile in front of it.
                 }
 
 
+#### 4. change lane if there is a vehcile close in front of us. check left lane first. check right lane if left lane is not available.  
 
+                if ((prev_lanes_status_ != lanes_status ) ){
+                        prev_lanes_status_ = lanes_status;
+
+                        // my lane 0000 0010
+                        if ( lanes_status & 2 )
+                        {
+                                // car in front of us
+                                if (( lanes_status & 4 ) == 0 ) // check left lane
+ 
+                                    lane = lane - 1;
+                                }
+                                else if (( lanes_status & 1 ) == 0 ) // check right lane
+                                {
+                                    lane = lane + 1;
+                                }
+                        }
+                }
+
+
+
+#### 5. however, changing lane in high speed is dangerous, and the vehcile exceeds speed limit when it changes lane
 
 ![original VGG](./data/change_lane_at_highspeed1.png))
 
 ![original VGG](./data/change_lane_at_highspeed2.png))
+
+
+#### 6. slow down and then change lane to make our drive safer. we introduce a plan_to_change_lane flag, so we have one more state "plan to change lane" in state machine. the vehicle will slow down and then change lane.
+
+                if ((prev_lanes_status_ != lanes_status ) || (plan_to_change_lane == true)){
+
+                        prev_lanes_status_ = lanes_status;
+
+                        // my lane 0000 0010
+                        if ( lanes_status & 2 )
+                        {
+                                // car in front of us
+                                if (( lanes_status & 4 ) == 0 ) // check left lane
+                                {
+                                        if (( car_speed < max_speed_for_changing_lane) || ( dangerous_close == true) )
+                                        {       // change to left lane
+                                                lane = lane - 1;
+                                                plan_to_change_lane = false;
+                                                cout << " CHANGE to LEFT lane" << " car speed : " << car_speed<<endl;
+                                        }
+                                        else
+                                        {       // too fast to change lane. try slow down first to change lane
+                                                cout << " Plan to change to Left lane"<< " car speed : " << car_speed <<endl;
+                                                plan_to_change_lane = true;
+                                        }
+
+                                }
+                                else if (( lanes_status & 1 ) == 0 ) // check right lane
+                                {
+                                        if (( car_speed < max_speed_for_changing_lane) || ( dangerous_close == true) )
+                                        {       // change to right lane
+                                                lane = lane + 1;
+                                                plan_to_change_lane = false;
+                                                cout << " CHANGE to RIGHT lane"<< " car speed : " << car_speed <<endl;
+                                        }
+                                        else
+                                        {       // too fast to change lane. try slow down first to change lane
+                                                cout << " Plan to change to RIGHT lane"<< " car speed : " << car_speed <<endl;
+                                                plan_to_change_lane = true;
+                                        }
+                                }
+                                //}
+                                else
+                                {       // slow down
+                                        cout << " Keep lane, Slow down" <<endl;
+                                        plan_to_change_lane = false;
+                                }
+                        }
+                        else{
+                                // no car in front of us, no plan to change lane
+                                plan_to_change_lane = false;
+                        }
+
+                }
+
+
+
+
+#### 7. as below diagram, the vechile changes lane safely as below diagram
 
 ![original VGG](./data/change_lane_at_lowspeed1.png))
 
 ![original VGG](./data/change_lane_at_lowspeed2.png))
 
 ![original VGG](./data/change_lane_at_lowspeed3.png))
+
+
+#### 8. the vehcile also accelerate if its speed is < 49.5 mph or no plan to change lane. it will slow down if it is too close to the vehcile in the same lane.
+
+                if(too_close)
+                {
+                        // Dump info
+
+                        ref_vel-=0.224;
+                        //cout << "  Slow down ref_vel:" << ref_vel <<endl;
+
+                }
+                else if(( ref_vel < 49.5 ) && ( plan_to_change_lane == false ) )
+                {
+                        ref_vel+=0.224;
+                        //cout << "  Speedup ref_vel:" << ref_vel <<endl;
+                }
 
 
 ### Simulator.
