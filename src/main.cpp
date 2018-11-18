@@ -23,6 +23,8 @@ vector<Vehicle> vehicles_in_myleftlane;
 vector<Vehicle> vehicles_in_myrightlane;
 vector<Vehicle> vehicles_in_lane[3];
 unsigned int  prev_lanes_status_ = 0x00000000;
+bool plan_to_change_lane = false;
+double max_speed_for_changing_lane = 35.0;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -266,9 +268,10 @@ int main() {
                         //car_s = end_path_s;
                 }
                 bool too_close = false;
+                bool dangerous_close = false;
                 bool too_close_[3];
-                bool slow_down = false;
                 unsigned int  lanes_status = 0x00000000;
+                //bool plan_to_change_lane = false;
                 for (int i = 0; i < 3; i++)
                         too_close_[i] = false;
 
@@ -336,6 +339,7 @@ int main() {
                         float d = vehicles[i].d;
 
                         double distance_threshold = 30 * (car_speed / 20.0 );
+                        double dangerous_distance_threshold = 10 * (car_speed / 20.0 );
 
                         for (int l=0; l < 3;l++)
                         {
@@ -373,6 +377,11 @@ int main() {
                                                         //ref_vel = 29.5;
                                                         too_close = true;
                                                         too_close_[l] = true;
+                                                        if ((check_car_s - car_s) < dangerous_distance_threshold)
+                                                        {
+                                                                dangerous_close = true;
+                                                                cout << " CAR DANGEROUS CLOSE in my lane d:"<< car_d << " id: " << vehicles[i].id << " distance s :" << check_car_s - car_s <<endl;
+                                                        }
                                                         //cout << " CAR TOO CLOSE in my lane d:"<< car_d << " id: " << vehicles[i].id << " distance s :" << check_car_s - car_s <<endl;
 
                                                 }
@@ -452,7 +461,7 @@ int main() {
 
                 }
 
-                if (prev_lanes_status_ != lanes_status ){
+                if ((prev_lanes_status_ != lanes_status ) || (plan_to_change_lane == true)){
                         cout << " Lane Status :" <<  lanes_status <<endl;
                         prev_lanes_status_ = lanes_status;
 
@@ -460,23 +469,47 @@ int main() {
                         if ( lanes_status & 2 )
                         {
                                 // car in front of us
+                                // check car speed
+                                //if (( car_speed < 30.0) || ( dangerous_close == true) ){ // don't change lane if speed is too fast
                                 if (( lanes_status & 4 ) == 0 ) // check left lane
-                                {       // change to left lane
-                                        lane = lane - 1;
-                                        cout << " CHANGE to LEFT lane" <<endl;
+                                {
+                                        if (( car_speed < max_speed_for_changing_lane) || ( dangerous_close == true) )
+                                        {       // change to left lane
+                                                lane = lane - 1;
+                                                plan_to_change_lane = false;
+                                                cout << " CHANGE to LEFT lane" << " car speed : " << car_speed<<endl;
+                                        }
+                                        else
+                                        {       // too fast to change lane. try slow down first to change lane
+                                                cout << " Plan to change to Left lane"<< " car speed : " << car_speed <<endl;
+                                                plan_to_change_lane = true;
+                                        }
 
                                 }
                                 else if (( lanes_status & 1 ) == 0 ) // check right lane
-                                {       // change to right lane
-                                        lane = lane + 1;
-                                        cout << " CHANGE to RIGHT lane" <<endl;
+                                {
+                                        if (( car_speed < max_speed_for_changing_lane) || ( dangerous_close == true) )
+                                        {       // change to right lane
+                                                lane = lane + 1;
+                                                plan_to_change_lane = false;
+                                                cout << " CHANGE to RIGHT lane"<< " car speed : " << car_speed <<endl;
+                                        }
+                                        else
+                                        {       // too fast to change lane. try slow down first to change lane
+                                                cout << " Plan to change to RIGHT lane"<< " car speed : " << car_speed <<endl;
+                                                plan_to_change_lane = true;
+                                        }
                                 }
+                                //}
                                 else
                                 {       // slow down
-                                        //ref_vel-=0.224 * (car_speed / 10.0 );
-                                        slow_down = true;
                                         cout << " Keep lane, Slow down" <<endl;
+                                        plan_to_change_lane = false;
                                 }
+                        }
+                        else{
+                                // no car in front of us, no plan to change lane
+                                plan_to_change_lane = false;
                         }
 
                 }
@@ -485,13 +518,13 @@ int main() {
                         // Dump info
 
                         ref_vel-=0.224;
-                        cout << "  Slow down ref_vel:" << ref_vel <<endl;
+                        //cout << "  Slow down ref_vel:" << ref_vel <<endl;
 
                 }
-                else if( ref_vel < 49.5 )
+                else if(( ref_vel < 49.5 ) && ( plan_to_change_lane == false ) )
                 {
                         ref_vel+=0.224;
-                        cout << "  Speedup ref_vel:" << ref_vel <<endl;
+                        //cout << "  Speedup ref_vel:" << ref_vel <<endl;
                 }
 
                 vector<double> ptsx;
