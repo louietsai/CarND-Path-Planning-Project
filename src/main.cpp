@@ -267,6 +267,7 @@ int main() {
                 }
                 bool too_close = false;
                 bool too_close_[3];
+                bool slow_down = false;
                 unsigned int  lanes_status = 0x00000000;
                 for (int i = 0; i < 3; i++)
                         too_close_[i] = false;
@@ -333,6 +334,9 @@ int main() {
                         // float d = vehicles[i].d;
                         // if (d < (2+4*lane+2) && d > (2+4*lane -2))
                         float d = vehicles[i].d;
+
+                        double distance_threshold = 30 * (car_speed / 20.0 );
+
                         for (int l=0; l < 3;l++)
                         {
 
@@ -363,7 +367,8 @@ int main() {
                                                 }
 
                                                 // check distance between our car and cars ahead
-                                                if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+                                                //cout << " Too close ratio : " << car_speed/10.0 << endl;
+                                                if ((check_car_s > car_s) && ((check_car_s - car_s) < distance_threshold))
                                                 {
                                                         //ref_vel = 29.5;
                                                         too_close = true;
@@ -375,7 +380,7 @@ int main() {
                                         else
                                         {
                                                 // check distance between our car and cars ahead
-                                                if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+                                                if ((check_car_s > car_s) && ((check_car_s - car_s) < distance_threshold))
                                                 {
                                                         //ref_vel = 29.5;
                                                         too_close_[l] = true;
@@ -399,29 +404,7 @@ int main() {
                                 }// else
 
                         }//for l
-/*
-                        bool cars_change_lane = false;
-                        for (int l=0; l < 3;l++)
-                        {
-                                if (d < (2+4*l+2) && d > (2+4*l -2))
-                                {
-                                        //track vehicles in my lane
-                                        bool new_car_in_lane = true;
-                                        for (int j=0; j < vehicles_in_lane[l].size();j++) {
-                                                if ( vehicles_in_lane[l][j].id == vehicles[i].id){
-                                                        new_car_in_lane = false;
-                                                        break;
-                                                }
-                                        }
-                                        if ((vehicles_in_lane[l].size() == 0) || ( new_car_in_lane == true )){
-                                                vehicles_in_lane[l].push_back(vehicles[i]);
-                                                //cout << " lane :" << l <<" NEW CAR  id: " << vehicles[i].id  <<endl;
-                                                cars_change_lane = true;
-                                        }
-                                }
-                        }
-                        cout << " s diff :" << end_path_s - car_s << " car s : " << car_s << " car_d : " << car_d << " end_path_s : "<< end_path_s << " end_path_d :" << end_path_d<<endl;
-*/
+
                         for (int l=0; l < 3;l++)
                         {
                                 //if ( cars_change_lane == false )
@@ -468,6 +451,7 @@ int main() {
                         }// for
 
                 }
+
                 if (prev_lanes_status_ != lanes_status ){
                         cout << " Lane Status :" <<  lanes_status <<endl;
                         prev_lanes_status_ = lanes_status;
@@ -489,23 +473,25 @@ int main() {
                                 }
                                 else
                                 {       // slow down
-                                        ref_vel-=0.224;
+                                        //ref_vel-=0.224 * (car_speed / 10.0 );
+                                        slow_down = true;
                                         cout << " Keep lane, Slow down" <<endl;
                                 }
                         }
 
                 }
-/*
                 if(too_close)
                 {
                         // Dump info
 
                         ref_vel-=0.224;
+                        cout << "  Slow down ref_vel:" << ref_vel <<endl;
+
                 }
-*/
-                if(ref_vel < 49.5)
+                else if( ref_vel < 49.5 )
                 {
                         ref_vel+=0.224;
+                        cout << "  Speedup ref_vel:" << ref_vel <<endl;
                 }
 
                 vector<double> ptsx;
