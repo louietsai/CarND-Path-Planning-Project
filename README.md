@@ -26,6 +26,63 @@ here is an example of changing lane because of slow vehcile in front of it.
 
 ### Implementations
 
+#### 1. get another vehicles information from sensor fusion data, and add them into vehciles vector
+
+                for(int i = 0; i < sensor_fusion.size();i++)
+                {
+                   ...
+                   vehicles.push_back(new_vehicle);
+                }
+
+
+#### 2. check if there is any vechile closeby according to vehciles vector, and look far away for the closeby vechiles if it drive fast. 
+
+                double distance_threshold = 30 * (car_speed / 20.0 );
+                for (int i=0; i < vehicles.size();i++)
+                {
+                   ...
+
+                   if ((check_car_s > car_s) && ((check_car_s - car_s) < distance_threshold))
+                   {
+                        too_close_[l] = true;
+                    }
+                }
+
+
+#### 3. set a lanes status according to step 2 results into a 3 bit format. the left most bit represents left lane, and right most bit represents right lane. center bit represents current lane.
+
+                for (int l=0; l < 3;l++)
+                {
+                   ...
+                                if (too_close_[l] == true )
+                                {
+                                        if ( l == (lane - 1))// left lane occupied
+                                        {
+                                                lanes_status  |= 0x04; // 0100
+                                        }
+                                        else if (l == (lane + 1)) // right lane occupied
+                                        {
+                                                lanes_status  |= 0x01; // 0001
+                                        }
+                                        else if ( l == lane )
+                                        {
+                                                lanes_status  |= 0x02; // 0010
+                                        }
+
+                                        if  ( lane == 0)// left lane occupied
+                                        {
+                                                lanes_status  |= 0x04; // 0100
+                                        }
+                                        else if  ( lane == 2) // right lane occupied
+                                        {
+                                                lanes_status  |= 0x01; // 0001
+                                        }
+                                }
+                }
+
+
+
+
 ![original VGG](./data/change_lane_at_highspeed1.png))
 
 ![original VGG](./data/change_lane_at_highspeed2.png))
