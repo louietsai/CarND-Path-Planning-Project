@@ -175,7 +175,7 @@ here is an example of changing lane because of slow vehcile in front of it.
 ![original VGG](./data/change_lane_at_lowspeed3.png))
 
 
-#### 8. the vehcile also accelerate if its speed is < 49.5 mph or no plan to change lane. it will slow down if it is too close to the vehcile in the same lane.
+#### 8. the vehcile also accelerates if its speed is < 49.5 mph or no plan to change lane. it will slow down if it is too close to the vehcile in the same lane.
 
                 if(too_close)
                 {
