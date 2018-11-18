@@ -10,15 +10,19 @@
 #include "json.hpp"
 #include "spline.h"
 #include "vehicle.h"
+//#include "ros/ros.h"
+//#include <Python.h>
 using namespace std;
 
 // for convenience
 using json = nlohmann::json;
 
 vector<Vehicle> vehicles;
-// time interval per move
-// 20 ms 0.02 sec
-float time_interval = 0.02;
+vector<Vehicle> vehicles_in_mylane;
+vector<Vehicle> vehicles_in_myleftlane;
+vector<Vehicle> vehicles_in_myrightlane;
+vector<Vehicle> vehicles_in_lane[3];
+unsigned int  prev_lanes_status_ = 0x00000000;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -250,6 +254,7 @@ int main() {
           	vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
 
                 int prev_size = previous_path_x.size();
+                //cout << " prev_size : " << prev_size<<endl;
                 //int prev_size = 0;
 
           	json msgJson;
@@ -258,31 +263,18 @@ int main() {
 
                 if (prev_size > 0)
                 {
-                        car_s = end_path_s;
+                        //car_s = end_path_s;
                 }
                 bool too_close = false;
-                // add Main car into vehicles array
-                if (vehicles.size() == 0){
-                        cout << "NO VEHICLE in list!!"<<endl;
-                        Vehicle main_vehicle = Vehicle(car_d, car_s, car_speed, 0, "CS");
-                        vehicles.push_back(main_vehicle);
-                }
-                vehicles[0].x = car_x;
-                vehicles[0].y = car_y;
-                //vehicles[0].vx = vx;
-                //vehicles[0].vy = vy;
-                vehicles[0].d = car_d;
-                vehicles[0].lane = lane;
-                vehicles[0].s = car_s;
-                vehicles[0].a = (car_speed - vehicles[0].v) / time_interval;
-                vehicles[0].v = car_speed;
-                //vehicles[0].state = state;
-                //
-                // Merge sensor fusion into vehicles array
+                bool too_close_[3];
+                unsigned int  lanes_status = 0x00000000;
+                for (int i = 0; i < 3; i++)
+                        too_close_[i] = false;
+
                 for(int i = 0; i < sensor_fusion.size();i++)
                 {
                         // [ id, x, y, vx, vy, s, d]
-                        float id = sensor_fusion[i][0] + 1; // shift id number. id:0 is main car
+                        float id = sensor_fusion[i][0];
                         float x = sensor_fusion[i][1];
                         float y = sensor_fusion[i][2];
                         float vx = sensor_fusion[i][3];
@@ -295,10 +287,10 @@ int main() {
                         float a = 0; //TODO
                         bool found = false;
 
-                        cout << " before iterator vehicle ID: " << id <<endl;
+                        //cout << " before iterator vehicle ID: " << id <<endl;
                         //for (vector<Vehicle>::iterator it = vehicles.begin(); it != vehicles.end(); ++it) {
                         for (int j=0; j < vehicles.size();j++) {
-                                cout << " into iterator id: " << id <<endl;
+                                //cout << " into iterator id: " << id <<endl;
                                 if (vehicles[j].id == id){
                                         found = true;
                                         vehicles[j].x = x;
@@ -306,10 +298,10 @@ int main() {
                                         vehicles[j].vx = vx;
                                         vehicles[j].vy = vy;
                                         vehicles[j].d = d;
-                                        //vehicles[j].lane = lane;
+                                        vehicles[j].lane = lane;
                                         vehicles[j].s = s;
-                                        vehicles[j].a = (v - vehicles[j].v) / time_interval;
                                         vehicles[j].v = v;
+                                        vehicles[j].a = a;
                                         vehicles[j].state = state;
                                         break;
                                 }
@@ -327,47 +319,191 @@ int main() {
                         }
                 }
 
-                // Prediction for each Vehicle
-                map<int ,vector<Vehicle> > predictions;
                 for (vector<Vehicle>::iterator it = vehicles.begin(); it != vehicles.end(); ++it) {
-//#ifdef debug
-                        cout << " car from sensor  id:" << it->id << " ,x:"<< it->x << " ,y:"<< it->y << " ,vx:"<< it->vx << " ,vy:"<< it->vy << " ,s:"<< it->s << " ,d:"<< it->d << " ,v:"<< it->v<<" ,a:"<<it->a<< endl;
-                        //vector<Vehicle> preds = it->generate_predictions();
-                        //predictions[it->id] = preds;
-//#endif
+                        //cout << " car from sensor : " << it->id << " ,"<< it->x << " ,"<< it->y << " ,"<< it->vx << " ,"<< it->vy << " ,"<< it->s << " ,"<< it->d << endl;
                 }
 
                 //find ref_v to use
+                //
+
                 for (int i=0; i < vehicles.size();i++)
                 {
 
                         //car is in my lane
+                        // float d = vehicles[i].d;
+                        // if (d < (2+4*lane+2) && d > (2+4*lane -2))
                         float d = vehicles[i].d;
-                        if (d < (2+4*lane+2) && d > (2+4*lane -2))
+                        for (int l=0; l < 3;l++)
                         {
-                                double vx = vehicles[i].vx;
-                                double vy = vehicles[i].vy;
-                                double check_speed = sqrt(vx*vx+vy*vy);
-                                double check_car_s = vehicles[i].s;
-                                check_car_s+=((double)prev_size*0.02*check_speed);
-                                if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+
+                                if (d < (2+4*l+2) && d > (2+4*l -2))
                                 {
-                                        //ref_vel = 29.5;
-                                        too_close = true;
-                                        if (lane > 0)
+
+                                        double vx = vehicles[i].vx;
+                                        double vy = vehicles[i].vy;
+                                        double check_speed = sqrt(vx*vx+vy*vy);
+                                        double check_car_s = vehicles[i].s;
+                                        check_car_s+=((double)prev_size*0.02*check_speed);
+
+                                        if ( l == lane)
                                         {
-                                                lane = 0;
+                                                //track vehicles in my lane
+                                                bool new_car_in_mylane = true;
+
+                                                for (int j=0; j < vehicles_in_mylane.size();j++) {
+                                                        if ( vehicles_in_mylane[j].id == vehicles[i].id){
+                                                                new_car_in_mylane = false;
+                                                                break;
+                                                        }
+                                                }
+
+                                                if ((vehicles_in_mylane.size() == 0) || ( new_car_in_mylane == true )){
+                                                        vehicles_in_mylane.push_back(vehicles[i]);
+                                                        //cout << " NEW CAR in my lane d:"<< car_d << " id: " << vehicles[i].id << " distance s :" << check_car_s - car_s <<endl;
+                                                }
+
+                                                // check distance between our car and cars ahead
+                                                if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+                                                {
+                                                        //ref_vel = 29.5;
+                                                        too_close = true;
+                                                        too_close_[l] = true;
+                                                        //cout << " CAR TOO CLOSE in my lane d:"<< car_d << " id: " << vehicles[i].id << " distance s :" << check_car_s - car_s <<endl;
+
+                                                }
+                                        } // if l == lane
+                                        else
+                                        {
+                                                // check distance between our car and cars ahead
+                                                if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+                                                {
+                                                        //ref_vel = 29.5;
+                                                        too_close_[l] = true;
+                                                        //cout << " CAR TOO CLOSE in lane :" << l<< "  d:"<< car_d << " id: " << vehicles[i].id << " distance s :" << check_car_s - car_s <<endl;
+
+                                                }
+
                                         }
+                                }// if d
+                                else
+                                {
+
+                                        for (int j=0; j < vehicles_in_mylane.size();j++) {
+                                                if ( vehicles_in_mylane[j].id == vehicles[i].id){
+                                                        //cout << "CAR AWAY my lane id: " << vehicles[i].id << "  d:" << vehicles[i].d<<endl;
+                                                        vehicles_in_mylane.erase(vehicles_in_mylane.begin()+j);
+                                                        break;
+                                                }
+                                        }// for
+
+                                }// else
+
+                        }//for l
+/*
+                        bool cars_change_lane = false;
+                        for (int l=0; l < 3;l++)
+                        {
+                                if (d < (2+4*l+2) && d > (2+4*l -2))
+                                {
+                                        //track vehicles in my lane
+                                        bool new_car_in_lane = true;
+                                        for (int j=0; j < vehicles_in_lane[l].size();j++) {
+                                                if ( vehicles_in_lane[l][j].id == vehicles[i].id){
+                                                        new_car_in_lane = false;
+                                                        break;
+                                                }
+                                        }
+                                        if ((vehicles_in_lane[l].size() == 0) || ( new_car_in_lane == true )){
+                                                vehicles_in_lane[l].push_back(vehicles[i]);
+                                                //cout << " lane :" << l <<" NEW CAR  id: " << vehicles[i].id  <<endl;
+                                                cars_change_lane = true;
+                                        }
+                                }
+                        }
+                        cout << " s diff :" << end_path_s - car_s << " car s : " << car_s << " car_d : " << car_d << " end_path_s : "<< end_path_s << " end_path_d :" << end_path_d<<endl;
+*/
+                        for (int l=0; l < 3;l++)
+                        {
+                                //if ( cars_change_lane == false )
+                                //        break;
+                                if (vehicles_in_lane[l].size() > 0 )
+                                        cout <<endl<< "==LANE :" << l << endl;
+                                for (int j=0; j < vehicles_in_lane[l].size();j++) {
+                                        double vx = vehicles_in_lane[l][j].vx;
+                                        double vy = vehicles_in_lane[l][j].vy;
+                                        double check_speed = sqrt(vx*vx+vy*vy);
+                                        double check_car_s = vehicles_in_lane[l][j].s;
+                                        check_car_s+=((double)prev_size*0.02*check_speed);
+                                        //if (check_car_s < car_s)
+                                        {
+                                                cout << "       CAR  id: " << vehicles_in_lane[l][j].id << " car s: " << check_car_s<<" distance s :" << check_car_s - car_s << endl;
+                                        }
+                                }
+                                //cout << endl <<endl;
+
+                                if (too_close_[l] == true )
+                                {
+                                        if ( l == (lane - 1))// left lane occupied
+                                        {
+                                                lanes_status  |= 0x04; // 0100
+                                        }
+                                        else if (l == (lane + 1)) // right lane occupied
+                                        {
+                                                lanes_status  |= 0x01; // 0001
+                                        }
+                                        else if ( l == lane )
+                                        {
+                                                lanes_status  |= 0x02; // 0010
+                                        }
+
+                                        if  ( lane == 0)// left lane occupied
+                                        {
+                                                lanes_status  |= 0x04; // 0100
+                                        }
+                                        else if  ( lane == 2) // right lane occupied
+                                        {
+                                                lanes_status  |= 0x01; // 0001
+                                        }
+                                }
+                        }// for
+
+                }
+                if (prev_lanes_status_ != lanes_status ){
+                        cout << " Lane Status :" <<  lanes_status <<endl;
+                        prev_lanes_status_ = lanes_status;
+
+                        // my lane 0000 0010
+                        if ( lanes_status & 2 )
+                        {
+                                // car in front of us
+                                if (( lanes_status & 4 ) == 0 ) // check left lane
+                                {       // change to left lane
+                                        lane = lane - 1;
+                                        cout << " CHANGE to LEFT lane" <<endl;
+
+                                }
+                                else if (( lanes_status & 1 ) == 0 ) // check right lane
+                                {       // change to right lane
+                                        lane = lane + 1;
+                                        cout << " CHANGE to RIGHT lane" <<endl;
+                                }
+                                else
+                                {       // slow down
+                                        ref_vel-=0.224;
+                                        cout << " Keep lane, Slow down" <<endl;
                                 }
                         }
 
                 }
-
+/*
                 if(too_close)
                 {
+                        // Dump info
+
                         ref_vel-=0.224;
                 }
-                else if(ref_vel < 49.5)
+*/
+                if(ref_vel < 49.5)
                 {
                         ref_vel+=0.224;
                 }
